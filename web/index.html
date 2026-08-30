@@ -1,0 +1,738 @@
+<title>AetherKV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --void:#07080d;
+    --hull:#0d1119;
+    --hull-raised:#121826;
+    --seam:#212b3d;
+    --signal:#37e0c9;
+    --signal-dim:#1a6b63;
+    --arc:#8f7bff;
+    --arc-dim:#4a3f8f;
+    --alert:#ff5d73;
+    --ink:#cfe0e8;
+    --ink-dim:#7d8ea3;
+    --ink-faint:#48566a;
+    --display:'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse 900px 520px at 12% -10%, rgba(143,123,255,.11), transparent 60%),
+      radial-gradient(ellipse 760px 520px at 102% 0%, rgba(55,224,201,.09), transparent 55%),
+      var(--void);
+    color:var(--ink);
+    font-family:var(--mono);
+  }
+
+  h1,h2,h3{ margin:0; text-wrap:balance; }
+  button{ font-family:inherit; }
+  ::selection{ background:rgba(55,224,201,.28); color:#fff; }
+  :focus-visible{ outline:2px solid var(--signal); outline-offset:2px; }
+
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.001ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;
+    }
+  }
+
+  /* ---------- atmosphere ---------- */
+  .grid-veil{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(55,224,201,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(55,224,201,.045) 1px, transparent 1px);
+    background-size:42px 42px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 65% at 50% 15%, black, transparent 85%);
+            mask-image:radial-gradient(ellipse 80% 65% at 50% 15%, black, transparent 85%);
+  }
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.5;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 3px);
+    animation:scandrift 9s linear infinite;
+  }
+  @keyframes scandrift{ from{ background-position-y:0; } to{ background-position-y:120px; } }
+
+  /* ---------- shell ---------- */
+  .shell{ position:relative; z-index:2; max-width:1400px; margin:0 auto; display:flex; flex-direction:column; min-height:100vh; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+    padding:18px clamp(16px,3vw,32px); border-bottom:1px solid var(--seam);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-text{ display:flex; flex-direction:column; }
+  .brand-name{ font-family:var(--display); font-weight:700; font-size:21px; letter-spacing:.03em; color:var(--ink); }
+  .brand-sub{ font-family:var(--mono); font-size:11px; color:var(--ink-dim); margin-top:2px; }
+  .topbar-right{ display:flex; align-items:center; gap:16px; }
+  .status-pill{
+    display:flex; align-items:center; gap:7px; font-size:11px; letter-spacing:.06em;
+    color:var(--signal); border:1px solid var(--signal-dim); padding:5px 10px; border-radius:3px;
+  }
+  .led{ width:7px; height:7px; border-radius:50%; background:var(--signal); box-shadow:0 0 8px var(--signal); animation:ledpulse 2.4s ease-in-out infinite; }
+  @keyframes ledpulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .clock{ font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums; }
+
+  /* ---------- instruments ---------- */
+  .metrics{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; padding:20px clamp(16px,3vw,32px) 0; }
+  .instrument{ position:relative; background:var(--hull); border:1px solid var(--seam); padding:16px 16px 14px; transition:border-color .3s; }
+  .instrument:hover{ border-color:var(--signal-dim); }
+
+  .corner{ position:absolute; width:12px; height:12px; pointer-events:none; }
+  .corner.tl{ top:-1px; left:-1px; border-top:2px solid var(--seam); border-left:2px solid var(--seam); }
+  .corner.tr{ top:-1px; right:-1px; border-top:2px solid var(--seam); border-right:2px solid var(--seam); }
+  .corner.bl{ bottom:-1px; left:-1px; border-bottom:2px solid var(--seam); border-left:2px solid var(--seam); }
+  .corner.br{ bottom:-1px; right:-1px; border-bottom:2px solid var(--seam); border-right:2px solid var(--seam); }
+  .instrument:hover .corner, .panel:hover .corner{ border-color:var(--signal); transition:border-color .3s; }
+
+  .instrument-head{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .instrument-label{ font-family:var(--display); font-weight:600; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim); }
+  .instrument-unit{ font-size:10px; color:var(--ink-faint); }
+
+  .instrument-value{
+    font-weight:700; font-size:clamp(26px,4vw,38px); font-variant-numeric:tabular-nums;
+    color:var(--signal); text-shadow:0 0 14px rgba(55,224,201,.4); margin-top:6px; letter-spacing:.01em;
+  }
+  .instrument:nth-child(even) .instrument-value{ color:var(--arc); text-shadow:0 0 14px rgba(143,123,255,.4); }
+  .instrument-value.flash{ animation:valueFlash .5s ease-out; }
+  @keyframes valueFlash{ 0%{ filter:brightness(1.9); } 100%{ filter:brightness(1); } }
+
+  .instrument-caption{ margin-top:8px; font-size:11px; color:var(--ink-faint); }
+
+  .conn-dots{ display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+  .conn-dot{ width:7px; height:7px; background:var(--seam); }
+  .conn-dot.on{ background:var(--signal); box-shadow:0 0 6px rgba(55,224,201,.7); }
+
+  .mem-bar{ height:6px; background:var(--hull-raised); border:1px solid var(--seam); margin-top:10px; overflow:hidden; }
+  .mem-bar-fill{ height:100%; width:2%; background:linear-gradient(90deg,var(--arc-dim),var(--arc)); transition:width .5s ease; }
+
+  .sparkline{ display:flex; align-items:flex-end; gap:2px; height:26px; margin-top:10px; }
+  .sparkline span{ flex:1 1 auto; min-width:2px; border-radius:1px 1px 0 0; background:linear-gradient(to top,var(--signal-dim),var(--signal)); transition:height .3s ease; }
+
+  .keys-chip{ display:inline-block; margin-top:10px; padding:3px 8px; border:1px solid var(--seam); font-size:11px; color:var(--ink-dim); letter-spacing:.02em; }
+  .keys-chip.chip-active{ border-color:var(--arc-dim); color:var(--arc); }
+
+  /* ---------- deck / panels ---------- */
+  .deck{ display:grid; grid-template-columns:1.4fr 1fr; gap:14px; padding:20px clamp(16px,3vw,32px); flex:1 1 auto; min-height:0; }
+  @media (max-width:980px){ .deck{ grid-template-columns:1fr; } }
+  @media (max-width:760px){ .metrics{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:460px){ .metrics{ grid-template-columns:1fr; } }
+
+  .panel{ position:relative; background:var(--hull); border:1px solid var(--seam); display:flex; flex-direction:column; min-height:440px; transition:border-color .3s; }
+  .panel-header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    padding:11px 14px; border-bottom:1px solid var(--seam); background:var(--hull-raised);
+  }
+  .panel-title{ font-family:var(--display); font-weight:600; letter-spacing:.08em; text-transform:uppercase; font-size:12.5px; color:var(--ink); }
+  .panel-title::before{ content:'// '; color:var(--signal-dim); }
+  .keycount-badge{ font-size:11px; color:var(--ink-dim); border:1px solid var(--seam); padding:3px 8px; }
+
+  .quickcmds{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{ font-size:11px; padding:4px 9px; background:transparent; border:1px solid var(--seam); color:var(--ink-dim); border-radius:3px; cursor:pointer; transition:.2s; }
+  .chip:hover, .chip:focus-visible{ border-color:var(--signal); color:var(--signal); box-shadow:0 0 8px rgba(55,224,201,.25); outline:none; }
+
+  .terminal-output{ flex:1 1 auto; overflow-y:auto; padding:14px; font-size:13px; line-height:1.65; min-height:280px; max-height:min(48vh,460px); }
+  .terminal-output::-webkit-scrollbar{ width:8px; }
+  .terminal-output::-webkit-scrollbar-track{ background:var(--hull); }
+  .terminal-output::-webkit-scrollbar-thumb{ background:var(--seam); }
+  .terminal-output::-webkit-scrollbar-thumb:hover{ background:var(--signal-dim); }
+
+  .term-line{ white-space:pre-wrap; word-break:break-word; margin-bottom:2px; }
+  .term-line.echo{ color:var(--ink-dim); }
+  .echo-prompt{ color:var(--arc); }
+  .echo-cmd{ color:var(--ink); }
+  .badge{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; padding:1px 6px; margin-right:8px; }
+  .badge.reply-ok{ background:rgba(55,224,201,.15); color:var(--signal); }
+  .badge.reply-err{ background:rgba(255,93,115,.15); color:var(--alert); }
+  .badge.reply-int{ background:rgba(143,123,255,.15); color:var(--arc); }
+  .badge.reply-str{ background:rgba(55,224,201,.12); color:var(--signal); }
+  .badge.reply-nil{ background:rgba(109,127,147,.15); color:var(--ink-dim); }
+  .reply-text.reply-err{ color:var(--alert); }
+  .reply-text.reply-nil{ color:var(--ink-faint); font-style:italic; }
+  .raw-resp{ display:block; color:var(--ink-faint); font-size:11px; margin:0 0 8px 0; }
+  .term-line.boot{ color:var(--ink-dim); font-size:12px; }
+  .term-line.boot-note{ color:var(--signal-dim); font-size:12px; margin-top:4px; }
+  .help-block div{ color:var(--ink-dim); font-size:12px; padding:1px 0; }
+
+  .terminal-input-row{ display:flex; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid var(--seam); background:var(--hull-raised); }
+  .prompt{ color:var(--arc); font-size:13px; white-space:nowrap; }
+  #termInput{ flex:1 1 auto; background:transparent; border:none; outline:none; color:var(--ink); font-family:var(--mono); font-size:13.5px; caret-color:var(--signal); }
+  #termInput::placeholder{ color:var(--ink-faint); }
+  #termInput:disabled{ opacity:.4; }
+
+  .table-wrap{ flex:1 1 auto; overflow:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead th{
+    position:sticky; top:0; background:var(--hull-raised); text-align:left; padding:9px 12px;
+    font-family:var(--display); font-weight:600; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-dim); border-bottom:1px solid var(--seam);
+  }
+  tbody td{ padding:8px 12px; border-bottom:1px solid rgba(33,43,61,.6); color:var(--ink); vertical-align:middle; }
+  .cell-key{ color:var(--signal); }
+  .cell-value{ color:var(--ink-dim); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cell-ttl{ font-variant-numeric:tabular-nums; }
+  .cell-ttl.ttl-perm{ color:var(--ink-faint); }
+  .cell-ttl.ttl-live{ color:var(--arc); }
+  .cell-ttl.ttl-critical{ color:var(--alert); animation:ttlPulse 1s ease-in-out infinite; }
+  @keyframes ttlPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.5; } }
+  .cell-actions{ text-align:right; }
+  .row-del{ background:transparent; border:1px solid var(--seam); color:var(--ink-dim); width:22px; height:22px; border-radius:3px; cursor:pointer; line-height:1; font-size:11px; }
+  .row-del:hover, .row-del:focus-visible{ border-color:var(--alert); color:var(--alert); outline:none; }
+  .empty-row{ text-align:center; color:var(--ink-faint); padding:30px 12px !important; font-style:italic; }
+
+  .footer{
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    padding:16px clamp(16px,3vw,32px) 28px; font-size:11px; color:var(--ink-faint);
+  }
+</style>
+
+<div class="grid-veil" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="28" y2="28">
+            <stop offset="0" stop-color="#8f7bff"/>
+            <stop offset="1" stop-color="#37e0c9"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="24" height="24" rx="3" stroke="url(#brandGrad)" stroke-width="1.6"/>
+        <path d="M14 6v6l5 3" stroke="url(#brandGrad)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="14" cy="14" r="1.6" fill="url(#brandGrad)"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">AetherKV</span>
+        <span class="brand-sub">in-memory data engine &middot; control center</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill"><span class="led" aria-hidden="true"></span><span>ENGINE ONLINE</span></div>
+      <div class="clock" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Live telemetry">
+    <article class="instrument">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="instrument-head"><span class="instrument-label">Active Connections</span><span class="instrument-unit">peers</span></div>
+      <div class="instrument-value" id="mConnections">0</div>
+      <div class="conn-dots" id="connDots" aria-hidden="true"></div>
+      <div class="instrument-caption">simulated peer fleet</div>
+    </article>
+
+    <article class="instrument">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="instrument-head"><span class="instrument-label">Memory Usage</span><span class="instrument-unit">RSS est.</span></div>
+      <div class="instrument-value" id="mMemory">0 MB</div>
+      <div class="mem-bar" aria-hidden="true"><div class="mem-bar-fill" id="memBarFill"></div></div>
+      <div class="instrument-caption" id="mMemoryCaption">dataset 0 B</div>
+    </article>
+
+    <article class="instrument">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="instrument-head"><span class="instrument-label">Command Throughput</span><span class="instrument-unit">ops/sec</span></div>
+      <div class="instrument-value" id="mThroughput">0.0</div>
+      <div class="sparkline" id="sparkThroughput" aria-hidden="true"></div>
+      <div class="instrument-caption" id="mThroughputCaption">0 processed</div>
+    </article>
+
+    <article class="instrument">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="instrument-head"><span class="instrument-label">Keyspace Count</span><span class="instrument-unit">keys</span></div>
+      <div class="instrument-value" id="mKeys">0</div>
+      <div class="keys-chip" id="keysExpiring">no TTL keys</div>
+      <div class="instrument-caption">live in-memory keys</div>
+    </article>
+  </section>
+
+  <section class="deck">
+    <div class="panel terminal-panel">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="panel-header">
+        <span class="panel-title">RESP Terminal</span>
+        <div class="quickcmds" id="quickCmds"></div>
+      </div>
+      <div class="terminal-output" id="termOutput" aria-live="polite"></div>
+      <form class="terminal-input-row" id="termForm">
+        <span class="prompt">aetherkv:6379&gt;</span>
+        <input id="termInput" autocomplete="off" spellcheck="false" disabled aria-label="RESP command input" placeholder="initializing&hellip;" />
+      </form>
+    </div>
+
+    <div class="panel keyspace-panel">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <div class="panel-header">
+        <span class="panel-title">Keyspace Explorer</span>
+        <span class="keycount-badge" id="keyCountBadge">0 keys</span>
+      </div>
+      <div class="table-wrap">
+        <table aria-label="Keyspace entries">
+          <thead><tr><th>Key</th><th>Value</th><th>TTL</th><th></th></tr></thead>
+          <tbody id="keyspaceBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>VoltStore backend &middot; RESP protocol &middot; TypeScript + Node.js</span>
+    <span>this page runs the engine and telemetry entirely client-side, as a demo of the real backend's command semantics</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var encoder = new TextEncoder();
+  function byteLength(str){ return encoder.encode(str).length; }
+  function sleep(ms){ return new Promise(function(res){ setTimeout(res, reduceMotion ? 0 : ms); }); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function truncate(s, n){ return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  function formatBytes(n){
+    if (n < 1024) return n.toFixed(0) + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+  function formatTTL(expiresAt){
+    if (expiresAt === null) return { text: '∞', state: 'perm' };
+    var remaining = expiresAt - Date.now();
+    if (remaining <= 0) return { text: 'expired', state: 'expired' };
+    var totalSec = Math.ceil(remaining / 1000);
+    var m = Math.floor(totalSec / 60), s = totalSec % 60;
+    return { text: m > 0 ? (m + 'm ' + s + 's') : (s + 's'), state: remaining <= 5000 ? 'critical' : 'live' };
+  }
+
+  /* ---------- simulated store (mirrors src/store/store.ts) ---------- */
+  var STORAGE_KEY = 'aetherkv:v1:keyspace';
+  var ENTRY_OVERHEAD_BYTES = 48;
+
+  function SimStore(){
+    this.map = new Map();
+    this._load();
+    if (this.map.size === 0) this._seed();
+  }
+  SimStore.prototype._load = function(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      for (var i = 0; i < parsed.length; i++) this.map.set(parsed[i][0], parsed[i][1]);
+    } catch (e) { /* private mode / inaccessible storage: fall through with an empty store */ }
+  };
+  SimStore.prototype._persist = function(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(this.map))); } catch (e) {}
+  };
+  SimStore.prototype._seed = function(){
+    this.set('session:9f2a', 'operator-console', 180);
+    this.set('deploy:region', 'us-east-1');
+    this.set('node:role', 'primary');
+    this.set('cache:warmup', '1', 45);
+  };
+  SimStore.prototype._isExpired = function(entry){
+    return entry.expiresAt !== null && entry.expiresAt <= Date.now();
+  };
+  SimStore.prototype.set = function(key, value, ttlSeconds){
+    var expiresAt = ttlSeconds === undefined ? null : Date.now() + ttlSeconds * 1000;
+    this.map.set(key, { value: value, expiresAt: expiresAt });
+    this._persist();
+  };
+  SimStore.prototype.get = function(key){
+    var entry = this.map.get(key);
+    if (entry === undefined) return null;
+    if (this._isExpired(entry)) { this.map.delete(key); this._persist(); return null; }
+    return entry.value;
+  };
+  SimStore.prototype.del = function(keys){
+    var deleted = 0, self = this;
+    keys.forEach(function(k){
+      var entry = self.map.get(k);
+      if (entry === undefined) return;
+      self.map.delete(k);
+      if (!self._isExpired(entry)) deleted++;
+    });
+    this._persist();
+    return deleted;
+  };
+  SimStore.prototype.entries = function(){
+    var now = Date.now(), out = [], dirty = false, self = this;
+    this.map.forEach(function(entry, key){
+      if (entry.expiresAt !== null && entry.expiresAt <= now) { self.map.delete(key); dirty = true; return; }
+      out.push({ key: key, value: entry.value, expiresAt: entry.expiresAt });
+    });
+    if (dirty) this._persist();
+    return out;
+  };
+
+  var store = new SimStore();
+
+  function estimateDatasetBytes(entries){
+    var total = 0;
+    for (var i = 0; i < entries.length; i++){
+      total += ENTRY_OVERHEAD_BYTES + byteLength(entries[i].key) + byteLength(entries[i].value);
+    }
+    return total;
+  }
+
+  /* ---------- metrics (mirrors src/stats/stats.ts, plus ambient simulation) ---------- */
+  var metrics = (function(){
+    var connections = 3;
+    var commandTimestamps = [];
+    var totalCommands = 0, hits = 0, misses = 0;
+    var memBaseline = 39.5 * 1024 * 1024;
+
+    return {
+      commandProcessed: function(){ totalCommands++; commandTimestamps.push(Date.now()); },
+      recordHit: function(){ hits++; },
+      recordMiss: function(){ misses++; },
+      throughput: function(){
+        var now = Date.now();
+        commandTimestamps = commandTimestamps.filter(function(t){ return now - t <= 5000; });
+        return commandTimestamps.length / 5;
+      },
+      jitterConnections: function(){
+        var delta = Math.random() < 0.5 ? -1 : 1;
+        connections = Math.min(12, Math.max(2, connections + delta));
+      },
+      jitterMemBaseline: function(){
+        memBaseline += (Math.random() - 0.5) * 250000;
+        memBaseline = Math.max(30000000, Math.min(60000000, memBaseline));
+      },
+      get connections(){ return connections; },
+      get totalCommands(){ return totalCommands; },
+      get hits(){ return hits; },
+      get misses(){ return misses; },
+      get memBaseline(){ return memBaseline; }
+    };
+  })();
+
+  /* ---------- RESP-style command engine (mirrors src/commands/*) ---------- */
+  function tokenize(line){
+    var tokens = [], i = 0;
+    while (i < line.length){
+      while (i < line.length && line[i] === ' ') i++;
+      if (i >= line.length) break;
+      if (line[i] === '"' || line[i] === "'"){
+        var quote = line[i]; i++;
+        var buf = '';
+        while (i < line.length && line[i] !== quote){
+          if (line[i] === '\\' && i + 1 < line.length) { buf += line[i + 1]; i += 2; }
+          else { buf += line[i]; i++; }
+        }
+        i++;
+        tokens.push(buf);
+      } else {
+        var start = i;
+        while (i < line.length && line[i] !== ' ') i++;
+        tokens.push(line.slice(start, i));
+      }
+    }
+    return tokens;
+  }
+
+  function reply(type, value){ return { type: type, value: value }; }
+
+  function execCommand(tokens){
+    if (tokens.length === 0) return null;
+    var raw = tokens[0], args = tokens.slice(1);
+    var name = raw.toUpperCase();
+
+    if (name === 'PING'){
+      if (args.length > 1) return reply('error', "ERR wrong number of arguments for 'ping' command");
+      metrics.commandProcessed();
+      return args.length === 1 ? reply('bulk', args[0]) : reply('simple', 'PONG');
+    }
+    if (name === 'SET'){
+      if (args.length < 2) return reply('error', "ERR wrong number of arguments for 'set' command");
+      var key = args[0], value = args[1], rest = args.slice(2), ttl;
+      if (rest.length > 0){
+        if (rest.length !== 2 || rest[0].toUpperCase() !== 'EX') return reply('error', 'ERR syntax error');
+        if (!/^\d+$/.test(rest[1]) || Number(rest[1]) <= 0) return reply('error', 'ERR value is not an integer or out of range');
+        ttl = Number(rest[1]);
+      }
+      store.set(key, value, ttl);
+      metrics.commandProcessed();
+      return reply('simple', 'OK');
+    }
+    if (name === 'GET'){
+      if (args.length !== 1) return reply('error', "ERR wrong number of arguments for 'get' command");
+      var v = store.get(args[0]);
+      metrics.commandProcessed();
+      if (v === null) metrics.recordMiss(); else metrics.recordHit();
+      return reply('bulk', v);
+    }
+    if (name === 'DEL'){
+      if (args.length < 1) return reply('error', "ERR wrong number of arguments for 'del' command");
+      var n = store.del(args);
+      metrics.commandProcessed();
+      return reply('integer', n);
+    }
+    if (name === 'HELP') return reply('help', null);
+    if (name === 'CLEAR') return reply('clear', null);
+    return reply('error', "ERR unknown command '" + raw + "'");
+  }
+
+  function rawResp(r){
+    if (r.type === 'simple') return '+' + r.value + '\\r\\n';
+    if (r.type === 'error') return '-' + r.value + '\\r\\n';
+    if (r.type === 'integer') return ':' + r.value + '\\r\\n';
+    if (r.type === 'bulk') return r.value === null ? '$-1\\r\\n' : ('$' + byteLength(r.value) + '\\r\\n' + r.value + '\\r\\n');
+    return '';
+  }
+
+  /* ---------- terminal rendering ---------- */
+  var termOutput = document.getElementById('termOutput');
+  var termForm = document.getElementById('termForm');
+  var termInput = document.getElementById('termInput');
+
+  function printLine(html, cls){
+    var div = document.createElement('div');
+    div.className = 'term-line' + (cls ? ' ' + cls : '');
+    div.innerHTML = html;
+    termOutput.appendChild(div);
+    termOutput.scrollTop = termOutput.scrollHeight;
+  }
+  function printEcho(text){
+    printLine('<span class="echo-prompt">aetherkv:6379&gt;</span> <span class="echo-cmd">' + escapeHtml(text) + '</span>', 'echo');
+  }
+  function printHelp(){
+    printLine(
+      '<div class="help-block">' +
+      '<div>PING [message]        reply PONG or echo message</div>' +
+      '<div>SET key value [EX s]  store a value, optional TTL in seconds</div>' +
+      '<div>GET key               fetch a value, nil if missing/expired</div>' +
+      '<div>DEL key [key ...]     remove keys, returns count removed</div>' +
+      '<div>CLEAR                 clear this terminal</div>' +
+      '</div>'
+    );
+  }
+  function printReply(r){
+    if (r === null) return;
+    if (r.type === 'help') { printHelp(); return; }
+    if (r.type === 'clear') { termOutput.innerHTML = ''; return; }
+
+    var badge, text, cls;
+    if (r.type === 'simple') { badge = 'OK'; cls = 'reply-ok'; text = r.value; }
+    else if (r.type === 'error') { badge = 'ERR'; cls = 'reply-err'; text = r.value; }
+    else if (r.type === 'integer') { badge = 'INT'; cls = 'reply-int'; text = '(integer) ' + r.value; }
+    else {
+      badge = r.value === null ? 'NIL' : 'STR';
+      cls = r.value === null ? 'reply-nil' : 'reply-str';
+      text = r.value === null ? '(nil)' : ('"' + r.value + '"');
+    }
+    printLine('<span class="badge ' + cls + '">' + badge + '</span><span class="reply-text ' + cls + '">' + escapeHtml(text) + '</span>');
+    printLine('<span class="raw-resp">→ ' + escapeHtml(rawResp(r)) + '</span>', 'raw');
+  }
+
+  termForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (termInput.disabled) return;
+    var line = termInput.value;
+    if (!line.trim()) return;
+    printEcho(line);
+    history.push(line);
+    historyIndex = history.length;
+    termInput.value = '';
+    printReply(execCommand(tokenize(line)));
+    refreshAll();
+  });
+
+  var history = [], historyIndex = -1;
+  termInput.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowUp'){
+      if (historyIndex > 0) { historyIndex--; termInput.value = history[historyIndex]; }
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown'){
+      if (historyIndex < history.length - 1) { historyIndex++; termInput.value = history[historyIndex]; }
+      else { historyIndex = history.length; termInput.value = ''; }
+      e.preventDefault();
+    }
+  });
+  document.querySelector('.terminal-panel').addEventListener('click', function(){ termInput.focus(); });
+
+  var chipDefs = [
+    { label: 'PING', tmpl: 'PING' },
+    { label: 'SET', tmpl: 'SET key value' },
+    { label: 'GET', tmpl: 'GET key' },
+    { label: 'DEL', tmpl: 'DEL key' },
+    { label: 'HELP', tmpl: 'HELP' }
+  ];
+  var quickCmds = document.getElementById('quickCmds');
+  chipDefs.forEach(function(c){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = c.label;
+    btn.addEventListener('click', function(){
+      termInput.value = c.tmpl;
+      termInput.focus();
+      termInput.setSelectionRange(termInput.value.length, termInput.value.length);
+    });
+    quickCmds.appendChild(btn);
+  });
+
+  /* ---------- keyspace explorer ---------- */
+  var keyspaceBody = document.getElementById('keyspaceBody');
+  keyspaceBody.addEventListener('click', function(e){
+    var btn = e.target.closest('.row-del');
+    if (!btn) return;
+    execCommand(['DEL', btn.dataset.key]);
+    refreshAll();
+  });
+
+  function renderKeyspaceTable(entries){
+    var sorted = entries.slice().sort(function(a, b){ return a.key.localeCompare(b.key); });
+    document.getElementById('keyCountBadge').textContent = sorted.length + (sorted.length === 1 ? ' key' : ' keys');
+    keyspaceBody.innerHTML = '';
+    if (sorted.length === 0){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="4" class="empty-row">keyspace is empty &mdash; try <code>SET foo bar</code></td>';
+      keyspaceBody.appendChild(tr);
+      return;
+    }
+    sorted.forEach(function(entry){
+      var ttl = formatTTL(entry.expiresAt);
+      var row = document.createElement('tr');
+      row.innerHTML =
+        '<td class="cell-key">' + escapeHtml(entry.key) + '</td>' +
+        '<td class="cell-value" title="' + escapeHtml(entry.value) + '">' + escapeHtml(truncate(entry.value, 28)) + '</td>' +
+        '<td class="cell-ttl ttl-' + ttl.state + '">' + ttl.text + '</td>' +
+        '<td class="cell-actions"><button type="button" class="row-del" data-key="' + escapeHtml(entry.key) + '" aria-label="Delete ' + escapeHtml(entry.key) + '">✕</button></td>';
+      keyspaceBody.appendChild(row);
+    });
+  }
+
+  /* ---------- metric cards ---------- */
+  var elConnections = document.getElementById('mConnections');
+  var elMemory = document.getElementById('mMemory');
+  var elThroughput = document.getElementById('mThroughput');
+  var elKeys = document.getElementById('mKeys');
+  var lastValues = {};
+  function flashIfChanged(el, key, text){
+    if (lastValues[key] === text) return;
+    lastValues[key] = text;
+    el.textContent = text;
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  }
+
+  function renderConnDots(){
+    var el = document.getElementById('connDots'), total = 12, active = metrics.connections;
+    el.innerHTML = '';
+    for (var i = 0; i < total; i++){
+      var dot = document.createElement('span');
+      dot.className = 'conn-dot' + (i < active ? ' on' : '');
+      el.appendChild(dot);
+    }
+  }
+
+  var sparkHistory = [];
+  function updateSparkline(tp){
+    sparkHistory.push(tp);
+    if (sparkHistory.length > 24) sparkHistory.shift();
+    var max = Math.max(1, Math.max.apply(null, sparkHistory));
+    var el = document.getElementById('sparkThroughput');
+    el.innerHTML = sparkHistory.map(function(v){
+      var h = Math.max(6, Math.round((v / max) * 100));
+      return '<span style="height:' + h + '%"></span>';
+    }).join('');
+  }
+
+  function renderKeysChip(entries){
+    var expiring = entries.filter(function(e){ return e.expiresAt !== null; }).length;
+    var el = document.getElementById('keysExpiring');
+    el.textContent = expiring > 0 ? (expiring + ' with TTL') : 'no TTL keys';
+    el.classList.toggle('chip-active', expiring > 0);
+  }
+
+  function renderMetricCards(entries){
+    var datasetBytes = estimateDatasetBytes(entries);
+    var totalMem = metrics.memBaseline + datasetBytes;
+
+    flashIfChanged(elConnections, 'connections', String(metrics.connections));
+    renderConnDots();
+
+    flashIfChanged(elMemory, 'memory', formatBytes(totalMem));
+    document.getElementById('mMemoryCaption').textContent = 'dataset ' + formatBytes(datasetBytes);
+    document.getElementById('memBarFill').style.width = Math.min(100, Math.max(1, (datasetBytes / totalMem) * 100)).toFixed(2) + '%';
+
+    var tp = metrics.throughput();
+    flashIfChanged(elThroughput, 'throughput', tp.toFixed(1));
+    var totalReads = metrics.hits + metrics.misses;
+    var hitPct = totalReads > 0 ? Math.round((metrics.hits / totalReads) * 100) : null;
+    document.getElementById('mThroughputCaption').textContent =
+      metrics.totalCommands.toLocaleString() + ' processed' + (hitPct !== null ? (' · ' + hitPct + '% GET hit') : '');
+    updateSparkline(tp);
+
+    flashIfChanged(elKeys, 'keys', String(entries.length));
+    renderKeysChip(entries);
+  }
+
+  function refreshAll(){
+    var entries = store.entries();
+    renderKeyspaceTable(entries);
+    renderMetricCards(entries);
+  }
+
+  function tickClock(){
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  }
+
+  /* ---------- boot sequence ---------- */
+  function bootSequence(){
+    var lines = [
+      ['AetherKV client-side engine v0.4.1 — initializing…', 'boot'],
+      ['RESP command router …………… ready', 'boot'],
+      ['keyspace store (localStorage) … ready', 'boot'],
+      ['restoring persisted keyspace … ' + store.entries().length + ' key(s) found', 'boot'],
+      ['telemetry simulator …………… online', 'boot'],
+      ['', null],
+      ['type HELP for available commands', 'boot-note']
+    ];
+    var i = 0;
+    function next(){
+      if (i >= lines.length){
+        termInput.disabled = false;
+        termInput.placeholder = '';
+        termInput.focus();
+        return;
+      }
+      var line = lines[i++];
+      if (line[0] === '') printLine('&nbsp;');
+      else printLine(escapeHtml(line[0]), line[1]);
+      sleep(120 + Math.random() * 90).then(next);
+    }
+    next();
+  }
+
+  tickClock();
+  refreshAll();
+  bootSequence();
+
+  setInterval(function(){
+    tickClock();
+    if (Math.random() < 0.35) metrics.jitterConnections();
+    metrics.jitterMemBaseline();
+    refreshAll();
+  }, 1000);
+})();
+</script>

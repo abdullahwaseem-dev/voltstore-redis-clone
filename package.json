@@ -1,0 +1,37 @@
+{
+  "name": "voltstore",
+  "version": "0.1.0",
+  "description": "A Redis-compatible in-memory data store built from scratch (RESP protocol, TCP server, TTL support), with the AetherKV control-center dashboard.",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "redis",
+    "resp-protocol",
+    "tcp-server",
+    "in-memory-database",
+    "key-value-store",
+    "typescript",
+    "nodejs"
+  ],
+  "author": "Muhammad Abdullah Waseem",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdullahwaseem-dev/voltstore-redis-clone.git"
+  },
+  "homepage": "https://abdullahwaseem-dev.github.io/voltstore-redis-clone/",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
