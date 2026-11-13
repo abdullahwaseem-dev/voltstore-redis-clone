@@ -12,7 +12,7 @@ No `redis` npm package, no protocol library. Every byte on the wire is parsed by
 
 **Live dashboard demo: [abdullahwaseem-dev.github.io/voltstore-redis-clone](https://abdullahwaseem-dev.github.io/voltstore-redis-clone/)** — no install required, runs entirely client-side. (Deploys automatically from `web/` via GitHub Actions — see the badge above; it may take a minute or two to go live after the first push.)
 
-If you find this useful or interesting, a ⭐ on the repo is appreciated — it helps other people find it too.
+If you find this useful or interesting, a ⭐ on the repo is appreciated — it lets me know the project was useful.
 
 ---
 
@@ -31,7 +31,7 @@ If you find this useful or interesting, a ⭐ on the repo is appreciated — it 
 
 ## Overview
 
-VoltStore is a TCP server that speaks real [RESP](https://redis.io/docs/latest/develop/reference/protocol-spec/) (REdis Serialization Protocol), so `redis-cli` and any standard Redis client library can connect to it as if it were the genuine article. Under the hood it implements, from scratch:
+VoltStore is a TCP server that speaks real [RESP](https://redis.io/docs/latest/develop/reference/protocol-spec/) (REdis Serialization Protocol), so you can explore the implemented commands with `redis-cli`. It implements a small command subset, not full Redis compatibility. Under the hood it implements, from scratch:
 
 - A **streaming RESP parser** that reassembles commands from arbitrarily-fragmented TCP packets.
 - A **thread-safe-by-construction in-memory store** with per-key TTL expiration.
@@ -261,7 +261,7 @@ The RESP port defaults to `6379` (override with `PORT=<n>`); the admin API defau
 
 ### 3. Connect with redis-cli
 
-Any standard Redis client works, since this speaks real RESP. If `redis-cli` isn't installed locally, run it via Docker instead of installing Redis:
+Use `redis-cli` to try the supported commands. If `redis-cli` isn't installed locally, run it via Docker instead of installing Redis:
 
 ```bash
 docker run -it --rm --network host redis redis-cli -p 6379
@@ -285,7 +285,7 @@ OK
 (error) ERR unknown command 'NOTACOMMAND'
 ```
 
-Any Redis client library (ioredis, node-redis, redis-py, go-redis, …) works the same way against `127.0.0.1:6379` — they speak plain RESP and don't know or care that this isn't real Redis.
+Client-library compatibility is not guaranteed. Libraries can issue handshake, authentication, or metadata commands that VoltStore does not implement. Validate your client's startup behaviour and restrict experiments to the documented command subset.
 
 ### 4. Query live telemetry
 
@@ -326,6 +326,10 @@ Ideas for extending VoltStore beyond the current scope, roughly in the order the
 - **Automated test suite** — unit tests for the RESP parser's edge cases and command handlers, plus integration tests that drive the TCP server directly. CI (`.github/workflows/ci.yml`) currently only type-checks and builds; there's nothing to run yet.
 
 ---
+
+## Contributing
+
+Start with the [contribution guide](CONTRIBUTING.md) for local checks, focused pull requests, and useful bug reports. The highest-priority improvement is an automated test suite for fragmented RESP frames, command errors, and TTL expiry.
 
 ## License
 
